@@ -1,6 +1,6 @@
 FROM registry.cn-beijing.aliyuncs.com/yunionio/file-repo:v0.5.0 AS file-repo
 
-FROM registry.cn-beijing.aliyuncs.com/yunionio/onecloud-base:v0.2
+FROM onecloud-base:latest
 
 LABEL maintainer="Rain Zheng <zhengyu@yunion.com>"
 
