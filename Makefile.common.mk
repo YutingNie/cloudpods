@@ -50,7 +50,6 @@ docker-centos-build-stop:
 .PHONY: docker-centos-build
 .PHONY: docker-centos-build-stop
 
-
 define dockerAlpineBuildCmd
 set -o xtrace
 set -o errexit
@@ -78,6 +77,7 @@ docker-alpine-build:
 		$(DockerImageAlpineBuild) \
 		/bin/sh -c "$$dockerAlpineBuildCmd"
 	ls -lh _output/alpine-build/bin
+
 
 docker-alpine-build-stop:
 	docker stop --time 0 docker-alpine-build-$(tmpName) || true

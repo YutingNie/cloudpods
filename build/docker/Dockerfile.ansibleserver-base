@@ -1,4 +1,4 @@
-FROM onecloud-base:latest
+FROM registry.cn-beijing.aliyuncs.com/yunionio/onecloud-base:v3.15.4-0
 
 MAINTAINER "Yousong Zhou <zhouyousong@yunionyun.com>"
 
@@ -32,8 +32,3 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 # ansible should be installed
 # after setuptools and wheel
-#RUN pip3 install -U pip setuptools wheel \
-#  && pip3 install paramiko mysqlclient pywinrm \
-#  && pip3 install 'ansible<=9.0.0' \
-#  && apk del --no-network .build-dependencies \
-#  && rm -rf /root/.cache /root/.cargo /var/cache/apk/*

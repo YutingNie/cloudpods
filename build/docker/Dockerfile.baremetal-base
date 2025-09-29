@@ -28,7 +28,7 @@ RUN cp /root/grub_arm64.efi /tftp
 RUN cp -rf /usr/lib/grub/arm64-efi /tftp/grub
 
 
-FROM onecloud-base:latest
+FROM registry.cn-beijing.aliyuncs.com/yunionio/onecloud-base:v0.3-3.13.5
 
 MAINTAINER "Zexi Li <zexi.li@icloud.com>"
 
