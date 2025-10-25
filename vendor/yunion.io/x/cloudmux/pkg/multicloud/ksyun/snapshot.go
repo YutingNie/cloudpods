@@ -142,17 +142,17 @@ func (region *SRegion) GetISnapshots() ([]cloudprovider.ICloudSnapshot, error) {
 	ret := []cloudprovider.ICloudSnapshot{}
 	for i := 0; i < len(snapshots); i += 1 {
 		snapshots[i].region = region
-		ret[i] = &snapshots[i]
+		ret = append(ret, &snapshots[i])
 	}
 	return ret, nil
 }
 
-func (self *SSnapshot) Delete() error {
-	return self.region.DeleteSnapshot(self.SnapshotId)
+func (snap *SSnapshot) Delete() error {
+	return snap.region.DeleteSnapshot(snap.SnapshotId)
 }
 
 func (region *SRegion) CreateSnapshot(diskId, name, desc string) (*SSnapshot, error) {
-	params := map[string]string{
+	params := map[string]interface{}{
 		"VolumeId":     diskId,
 		"SnapshotName": name,
 		"SnapshotDesc": desc,
@@ -170,7 +170,7 @@ func (region *SRegion) CreateSnapshot(diskId, name, desc string) (*SSnapshot, er
 }
 
 func (region *SRegion) GetSnapshots(snapshotId, volumeId string) ([]SSnapshot, error) {
-	params := map[string]string{
+	params := map[string]interface{}{
 		"PageSize": "1000",
 	}
 	if len(snapshotId) > 0 {
@@ -221,7 +221,7 @@ func (region *SRegion) GetSnapshot(id string) (*SSnapshot, error) {
 }
 
 func (region *SRegion) DeleteSnapshot(snapshotId string) error {
-	params := map[string]string{
+	params := map[string]interface{}{
 		"SnapshotId": snapshotId,
 	}
 	_, err := region.ebsRequest("DeleteSnapshot", params)

@@ -1162,6 +1162,9 @@ func (h *SHostInfo) GetMasterNicIpAndMask() (string, int) {
 }
 
 func (h *SHostInfo) GetMasterIp() string {
+	if h.MasterNic == nil {
+		return ""
+	}
 	if h.MasterNic.Addr != "" {
 		return h.MasterNic.Addr
 	}
@@ -1567,7 +1570,11 @@ func (h *SHostInfo) fetchHostname() string {
 			hn = "host"
 		}
 		masterIp := h.GetMasterIp()
-		return hn + "-" + strings.Replace(masterIp, ".", "-", -1)
+		if len(masterIp) > 0 {
+			return hn + "-" + strings.Replace(masterIp, ".", "-", -1)
+		} else {
+			return hn
+		}
 	}
 }
 
@@ -1610,6 +1617,8 @@ func (h *SHostInfo) updateOrCreateHost(hostId string) (*api.HostDetails, error) 
 	input.CpuDesc = h.Cpu.cpuInfoProc.Model
 	input.CpuMicrocode = h.Cpu.cpuInfoProc.Microcode
 	input.CpuArchitecture = h.Cpu.CpuArchitecture
+	maxVcpu := int(h.GetKVMMaxCpus())
+	input.KvmCapMaxVcpu = &maxVcpu
 
 	if h.Cpu.cpuInfoProc.Freq > 0 {
 		input.CpuMhz = &h.Cpu.cpuInfoProc.Freq
@@ -1822,7 +1831,7 @@ func (h *SHostInfo) ensureNicsHostwires(hostInfo *api.HostDetails) error {
 				return errors.Wrap(err, "SetWireId")
 			}
 		} else {
-			log.Warningf("NIC not present %s", jsonutils.Marshal(nic).String())
+			log.Warningf("NIC not present %s, %d", nicInfo.Mac, nicInfo.VlanId)
 		}
 	}
 	return nil

@@ -190,6 +190,8 @@ type SGuest struct {
 	QgaStatus string `width:"36" charset:"ascii" nullable:"false" default:"unknown" list:"user" create:"optional"`
 	// power_states limit in [on, off, unknown]
 	PowerStates string `width:"36" charset:"ascii" nullable:"false" default:"unknown" list:"user" create:"optional"`
+	// 健康状态, 仅开机中火运行中有效， 目前只支持阿里云
+	HealthStatus string `width:"36" charset:"ascii" nullable:"true" default:"ok" list:"user"`
 	// Used for guest rescue
 	RescueMode bool `nullable:"false" default:"false" list:"user" create:"optional"`
 
@@ -1798,26 +1800,40 @@ func (manager *SGuestManager) validateCreateData(
 
 		if imageDiskFormat != "iso" {
 			var imgSupportUEFI *bool
+			var imgSupportBIOS *bool
 			if desc, ok := imgProperties[imageapi.IMAGE_UEFI_SUPPORT]; ok {
 				support := desc == "true"
 				imgSupportUEFI = &support
 			}
+			if biosDesc, ok := imgProperties[imageapi.IMAGE_BIOS_SUPPORT]; ok {
+				supportBIOS := biosDesc == "true"
+				imgSupportBIOS = &supportBIOS
+			}
+			// uefi is not support set default support bios
+			if imgSupportUEFI == nil || !*imgSupportUEFI {
+				supportBIOS := true
+				imgSupportBIOS = &supportBIOS
+			}
+
 			if input.OsArch == apis.OS_ARCH_AARCH64 {
 				// arm image supports UEFI by default
 				support := true
 				imgSupportUEFI = &support
 			}
-			switch {
-			case imgSupportUEFI != nil && *imgSupportUEFI:
-				if len(input.Bios) == 0 {
-					input.Bios = "UEFI"
-				} else if input.Bios != "UEFI" {
-					return nil, httperrors.NewInputParameterError("UEFI image requires UEFI boot mode")
+			switch input.Bios {
+			case "UEFI":
+				if imgSupportUEFI == nil || !*imgSupportUEFI {
+					return nil, httperrors.NewInputParameterError("UEFI boot mode requires UEFI image")
+				}
+			case "BIOS":
+				if imgSupportBIOS == nil || !*imgSupportBIOS {
+					return nil, httperrors.NewInputParameterError("BIOS boot mode requires BIOS image")
 				}
 			default:
-				// not UEFI image
-				if input.Bios == "UEFI" && len(imgProperties) != 0 {
-					return nil, httperrors.NewInputParameterError("UEFI boot mode requires UEFI image")
+				if imgSupportUEFI != nil && *imgSupportUEFI {
+					input.Bios = "UEFI"
+				} else {
+					input.Bios = "BIOS"
 				}
 			}
 		}
@@ -3292,6 +3308,9 @@ func (g *SGuest) syncWithCloudVM(ctx context.Context, userCred mcclient.TokenCre
 
 		if !g.IsFailureStatus() && syncStatus {
 			g.Status = extVM.GetStatus()
+			if g.Status == api.VM_RUNNING || g.Status == api.VM_STARTING {
+				g.HealthStatus = extVM.GetHealthStatus()
+			}
 			g.PowerStates = extVM.GetPowerStates()
 			g.InferPowerStates()
 		}
@@ -5109,6 +5128,7 @@ func (self *SGuest) GetDeployConfigOnHost(ctx context.Context, userCred mcclient
 		keypair := self.getKeypair()
 		if keypair != nil {
 			config.Add(jsonutils.NewString(keypair.PublicKey), "public_key")
+			config.Add(jsonutils.NewString(keypair.Name), "keypair_name")
 		}
 		deletePubKey, _ := params.GetString("delete_public_key")
 		if len(deletePubKey) > 0 {
@@ -5846,6 +5866,10 @@ func (self *SGuest) GetKeypairPublicKey() string {
 		return keypair.PublicKey
 	}
 	return ""
+}
+
+func (self *SGuest) GetKeypair() *SKeypair {
+	return self.getKeypair()
 }
 
 func (manager *SGuestManager) GetIpsInProjectWithName(projectId, name string, isExitOnly bool, addrType api.TAddressType) []string {

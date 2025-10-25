@@ -17,6 +17,7 @@ package ksyun
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"yunion.io/x/cloudmux/pkg/cloudprovider"
 	"yunion.io/x/jsonutils"
@@ -96,7 +97,7 @@ func (rule *SPermission) Delete() error {
 }
 
 func (region *SRegion) DeleteSecurityGroupRule(groupId string, ruleId string) error {
-	params := map[string]string{
+	params := map[string]interface{}{
 		"SecurityGroupId":      groupId,
 		"SecurityGroupEntryId": ruleId,
 	}
@@ -113,7 +114,7 @@ func (group *SSecurityGroup) CreateRule(opts *cloudprovider.SecurityGroupRuleCre
 }
 
 func (region *SRegion) CreateSecurityGroupRule(groupId string, opts *cloudprovider.SecurityGroupRuleCreateOptions) (*SPermission, error) {
-	params := map[string]string{
+	params := map[string]interface{}{
 		"SecurityGroupId": groupId,
 		"CidrBlock":       opts.CIDR,
 		"Direction":       string(opts.Direction),
@@ -166,16 +167,19 @@ func (region *SRegion) CreateSecurityGroupRule(groupId string, opts *cloudprovid
 	if len(ruleId) == 0 {
 		return nil, fmt.Errorf("invalid rule create response %s", resp.String())
 	}
-	group, err := region.GetSecurityGroup(groupId)
-	if err != nil {
-		return nil, err
-	}
-	for i := range group.SecurityGroupEntrySet {
-		if group.SecurityGroupEntrySet[i].SecurityGroupEntryId == ruleId {
-			group.SecurityGroupEntrySet[i].region = region
-			group.SecurityGroupEntrySet[i].SecurityGroupId = groupId
-			return &group.SecurityGroupEntrySet[i], nil
+	for i := 0; i < 3; i++ {
+		group, err := region.GetSecurityGroup(groupId)
+		if err != nil {
+			return nil, err
 		}
+		for i := range group.SecurityGroupEntrySet {
+			if group.SecurityGroupEntrySet[i].SecurityGroupEntryId == ruleId {
+				group.SecurityGroupEntrySet[i].region = region
+				group.SecurityGroupEntrySet[i].SecurityGroupId = groupId
+				return &group.SecurityGroupEntrySet[i], nil
+			}
+		}
+		time.Sleep(time.Second * 3)
 	}
 	return nil, errors.Wrapf(cloudprovider.ErrNotFound, "after create %s", jsonutils.Marshal(opts))
 }

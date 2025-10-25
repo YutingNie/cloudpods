@@ -31,15 +31,7 @@ type SStorage struct {
 
 	zone        *SZone
 	StorageType string
-}
-
-var ksDiskTypes = []string{
-	api.STORAGE_KSYUN_ESSD_AUTO_PL,
-	api.STORAGE_KSYUN_ESSD_PL1,
-	api.STORAGE_KSYUN_ESSD_PL2,
-	api.STORAGE_KSYUN_ESSD_PL3,
-	api.STORAGE_KSYUN_SSD3_0,
-	api.STORAGE_KSYUN_EHDD,
+	available   bool
 }
 
 func (storage *SStorage) GetId() string {
@@ -100,7 +92,7 @@ func (storage *SStorage) GetStorageConf() jsonutils.JSONObject {
 }
 
 func (storage *SStorage) GetEnabled() bool {
-	return true
+	return storage.available
 }
 
 func (storage *SStorage) CreateIDisk(opts *cloudprovider.DiskCreateConfig) (cloudprovider.ICloudDisk, error) {
@@ -108,6 +100,15 @@ func (storage *SStorage) CreateIDisk(opts *cloudprovider.DiskCreateConfig) (clou
 }
 
 func (storage *SStorage) GetIDiskById(id string) (cloudprovider.ICloudDisk, error) {
+	if len(strings.Split(id, "-")) >= 4 { // Local SSD
+		return &SDisk{
+			storage:        storage,
+			VolumeId:       id,
+			VolumeType:     storage.StorageType,
+			VolumeName:     id,
+			VolumeCategory: "data",
+		}, nil
+	}
 	disks, err := storage.zone.region.GetDisks([]string{id}, "", storage.zone.GetId())
 	if err != nil {
 		return nil, err
@@ -130,7 +131,7 @@ func (storage *SStorage) IsSysDiskStore() bool {
 }
 
 func (storage *SStorage) DisableSync() bool {
-	return false
+	return storage.StorageType == api.STORAGE_KSYUN_LOCAL_SSD
 }
 
 func (storage *SStorage) GetIStoragecache() cloudprovider.ICloudStoragecache {
@@ -138,5 +139,8 @@ func (storage *SStorage) GetIStoragecache() cloudprovider.ICloudStoragecache {
 }
 
 func (storage *SStorage) GetStatus() string {
+	if !storage.available {
+		return api.STORAGE_OFFLINE
+	}
 	return api.STORAGE_ONLINE
 }
